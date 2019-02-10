@@ -22,10 +22,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleException;
 import org.apache.catalina.LifecycleListener;
@@ -33,7 +31,6 @@ import org.apache.catalina.LifecycleState;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.valves.ValveBase;
-
 import ch.qos.logback.access.AccessConstants;
 import ch.qos.logback.access.joran.JoranConfigurator;
 import ch.qos.logback.access.spi.AccessEvent;
@@ -64,8 +61,6 @@ import ch.qos.logback.core.util.Loader;
 import ch.qos.logback.core.util.OptionHelper;
 import ch.qos.logback.core.util.StatusListenerConfigHelper;
 
-//import org.apache.catalina.Lifecycle;
-
 /**
  * This class is an implementation of tomcat's Valve interface, by extending
  * ValveBase.
@@ -80,30 +75,42 @@ import ch.qos.logback.core.util.StatusListenerConfigHelper;
  */
 public class LogbackValve extends ValveBase implements Lifecycle, Context, AppenderAttachable<IAccessEvent>, FilterAttachable<IAccessEvent> {
 
-    public final static String DEFAULT_FILENAME = "logback-access.xml";
-    public final static String DEFAULT_CONFIG_FILE = "conf" + File.separatorChar + DEFAULT_FILENAME;
-    final static String CATALINA_BASE_KEY = "catalina.base";
-    final static String CATALINA_HOME_KEY = "catalina.home";
+    public static final String DEFAULT_FILENAME = "logback-access.xml";
+
+    public static final String DEFAULT_CONFIG_FILE = "conf" + File.separatorChar + DEFAULT_FILENAME;
+
+    static final String CATALINA_BASE_KEY = "catalina.base";
+
+    static final String CATALINA_HOME_KEY = "catalina.home";
 
     private final LifeCycleManager lifeCycleManager = new LifeCycleManager();
 
     private long birthTime = System.currentTimeMillis();
+
     LogbackLock configurationLock = new LogbackLock();
 
     // Attributes from ContextBase:
     private String name;
+
     StatusManager sm = new BasicStatusManager();
+
     // TODO propertyMap should be observable so that we can be notified
     // when it changes so that a new instance of propertyMap can be
     // serialized. For the time being, we ignore this shortcoming.
     Map<String, String> propertyMap = new HashMap<String, String>();
+
     Map<String, Object> objectMap = new HashMap<String, Object>();
+
     private FilterAttachableImpl<IAccessEvent> fai = new FilterAttachableImpl<IAccessEvent>();
 
     AppenderAttachableImpl<IAccessEvent> aai = new AppenderAttachableImpl<IAccessEvent>();
+
     String filenameOption;
+
     boolean quiet;
+
     boolean started;
+
     boolean alreadySetLogbackStatusManager = false;
 
     private ExecutorService executorService;
@@ -119,40 +126,31 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context, Appen
     @Override
     public void startInternal() throws LifecycleException {
         executorService = ExecutorServiceUtil.newExecutorService();
-
         String filename;
-
         if (filenameOption != null) {
             filename = filenameOption;
         } else {
             addInfo("filename property not set. Assuming [" + DEFAULT_CONFIG_FILE + "]");
             filename = DEFAULT_CONFIG_FILE;
         }
-
-        // String catalinaBase = OptionHelper.getSystemProperty(CATALINA_BASE_KEY);
-        // String catalinaHome = OptionHelper.getSystemProperty(CATALINA_BASE_KEY);
-
         File configFile = searchForConfigFileTomcatProperty(filename, CATALINA_BASE_KEY);
         if (configFile == null) {
             configFile = searchForConfigFileTomcatProperty(filename, CATALINA_HOME_KEY);
         }
-
         URL resourceURL;
-        if (configFile != null)
+        if (configFile != null) {
             resourceURL = fileToUrl(configFile);
-        else
+        } else {
             resourceURL = searchAsResource(filename);
-
+        }
         if (resourceURL != null) {
             configureAsResource(resourceURL);
         } else {
             addWarn("Failed to find valid logback-access configuration file.");
         }
-
         if (!quiet) {
             StatusListenerConfigHelper.addOnConsoleListenerInstance(this, new OnConsoleStatusListener());
         }
-
         started = true;
         setState(LifecycleState.STARTING);
     }
@@ -250,17 +248,19 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context, Appen
                     }
                 }
             }
-
             getNext().invoke(request, response);
-
             TomcatServerAdapter adapter = new TomcatServerAdapter(request, response);
             IAccessEvent accessEvent = new AccessEvent(request, response, adapter);
-
+            try {
+                final String threadName = Thread.currentThread().getName();
+                if (threadName != null) {
+                    accessEvent.setThreadName(threadName);
+                }
+            } catch (Exception ignored) {
+            }
             if (getFilterChainDecision(accessEvent) == FilterReply.DENY) {
                 return;
             }
-
-            // TODO better exception handling
             aai.appendLoopOnAppenders(accessEvent);
         } finally {
             request.removeAttribute(AccessConstants.LOGBACK_STATUS_MANAGER_KEY);
@@ -301,7 +301,6 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context, Appen
     @Override
     public void detachAndStopAllAppenders() {
         aai.detachAndStopAllAppenders();
-
     }
 
     @Override
@@ -316,7 +315,7 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context, Appen
 
     @Override
     public String getInfo() {
-        return "Logback's implementation of ValveBase";
+        return "Logback\'s implementation of ValveBase";
     }
 
     // Methods from ContextBase:
@@ -408,10 +407,8 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context, Appen
     }
 
     // ====== Methods from catalina Lifecycle =====
-
     @Override
     public void addLifecycleListener(LifecycleListener arg0) {
-        // dummy NOP implementation
     }
 
     @Override
@@ -421,7 +418,6 @@ public class LogbackValve extends ValveBase implements Lifecycle, Context, Appen
 
     @Override
     public void removeLifecycleListener(LifecycleListener arg0) {
-        // dummy NOP implementation
     }
 
     @Override
